@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum BusinessType {
+  COFFEE_SHOP
+  RESTAURANT
+  BAKERY
+  BUFFET
+  CAR_WASH
+  GARAGE
+  ONLINE_SELLER
+  RETAIL_STORE
+  SERVICE_BUSINESS
+}
+
+enum CatalogMode {
+  MENU
+  PRODUCT_CATALOG
+  SERVICE_CATALOG
+}
+
+enum PricingType {
+  FIXED
+  STARTING_FROM
+  CONTACT_FOR_PRICE
+  NO_PRICE
+}
+
+enum UnitOfMeasure {
+  UNIT
+  CUP
+  BOTTLE
+  BOX
+  KG
+  G
+  LITER
+  ML
+  HOUR
+  SERVICE
+}
+
+enum RequestType {
+  ORDER
+  INQUIRY
+  BOOKING
+  SERVICE_REQUEST
+}
+
+enum RequestStatus {
+  NEW
+  SEEN
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Owner {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  isActive     Boolean    @default(true)
+  businesses   Business[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Business {
+  id          String            @id @default(cuid())
+  ownerId     String
+  owner       Owner             @relation(fields: [ownerId], references: [id])
+  name        String
+  nameKm      String?
+  slug        String            @unique
+  type        BusinessType
+  catalogMode CatalogMode       @default(PRODUCT_CATALOG)
+  branches    Branch[]
+  categories  Category[]
+  products    Product[]
+  requests    CustomerRequest[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model Branch {
+  id         String            @id @default(cuid())
+  businessId String
+  business   Business          @relation(fields: [businessId], references: [id])
+  name       String
+  nameKm     String?
+  slug       String
+  categories Category[]
+  products   Product[]
+  requests   CustomerRequest[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([businessId, slug])
+}
+
+model Category {
+  id         String    @id @default(cuid())
+  businessId String
+  branchId   String?
+  business   Business  @relation(fields: [businessId], references: [id])
+  branch     Branch?   @relation(fields: [branchId], references: [id])
+  name       String
+  nameKm     String?
+  position   Int       @default(0)
+  isActive   Boolean   @default(true)
+  products   Product[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Product {
+  id            String                @id @default(cuid())
+  businessId    String
+  branchId      String?
+  categoryId    String?
+  business      Business              @relation(fields: [businessId], references: [id])
+  branch        Branch?               @relation(fields: [branchId], references: [id])
+  category      Category?             @relation(fields: [categoryId], references: [id])
+  name          String
+  nameKm        String?
+  description   String?
+  descriptionKm String?
+  purchasePrice Decimal?              @db.Decimal(10, 2)
+  salesPrice    Decimal?              @db.Decimal(10, 2)
+  discount      Decimal?              @db.Decimal(10, 2)
+  pricingType   PricingType           @default(FIXED)
+  label         String?
+  uom           UnitOfMeasure         @default(UNIT)
+  toppings      Json?
+  ingredients   Json?
+  isAvailable   Boolean               @default(true)
+  isVisible     Boolean               @default(true)
+  images        ProductImage[]
+  requestItems  CustomerRequestItem[]
+  deletedAt     DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  key       String   @unique
+  url       String?
+  alt       String?
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CustomerRequest {
+  id            String                @id @default(cuid())
+  businessId    String
+  branchId      String?
+  business      Business              @relation(fields: [businessId], references: [id])
+  branch        Branch?               @relation(fields: [branchId], references: [id])
+  type          RequestType
+  status        RequestStatus         @default(NEW)
+  customerName  String?
+  customerPhone String?
+  customerNote  String?
+  items         CustomerRequestItem[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model CustomerRequestItem {
+  id                  String          @id @default(cuid())
+  requestId           String
+  productId           String?
+  request             CustomerRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  product             Product?        @relation(fields: [productId], references: [id])
+  productNameSnapshot String
+  quantity            Int             @default(1)
+  note                String?
+  createdAt           DateTime        @default(now())
+}
