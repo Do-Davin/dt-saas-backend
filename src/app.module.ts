@@ -10,6 +10,7 @@ import { BusinessesModule } from './modules/businesses/businesses.module';
 import { BranchesModule } from './modules/branches/branches.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ProductsModule } from './modules/products/products.module';
     BranchesModule,
     CategoriesModule,
     ProductsModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

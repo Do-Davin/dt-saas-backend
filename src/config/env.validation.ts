@@ -8,4 +8,9 @@ export const envValidationSchema = Joi.object({
   DATABASE_URL: Joi.string().required(),
   JWT_SECRET: Joi.string().required(),
   JWT_EXPIRES_IN: Joi.string().default('7d'),
+  MINIO_ENDPOINT: Joi.string().uri().required(),
+  MINIO_BUCKET: Joi.string().required(),
+  MINIO_ROOT_USER: Joi.string().required(),
+  MINIO_ROOT_PASSWORD: Joi.string().required(),
+  MINIO_PUBLIC_URL: Joi.string().uri().required(),
 });
