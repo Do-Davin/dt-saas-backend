@@ -12,6 +12,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { ProductImagesModule } from './modules/product-images/product-images.module';
+import { PublicCatalogModule } from './modules/public-catalog/public-catalog.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ProductImagesModule } from './modules/product-images/product-images.mod
     ProductsModule,
     StorageModule,
     ProductImagesModule,
+    PublicCatalogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
