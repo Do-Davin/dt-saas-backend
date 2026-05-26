@@ -18,6 +18,11 @@ lerna-debug.log*
 
 .claude/
 CLAUDE.md
+docs/
+
+# Storage
+minio-data/
+storage-data/
 
 # Tests
 /coverage
