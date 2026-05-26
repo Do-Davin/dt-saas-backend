@@ -5,6 +5,5 @@ import { PublicCatalogService } from './public-catalog.service';
 @Module({
   controllers: [PublicCatalogController],
   providers: [PublicCatalogService],
-  exports: [PublicCatalogService],
 })
 export class PublicCatalogModule {}

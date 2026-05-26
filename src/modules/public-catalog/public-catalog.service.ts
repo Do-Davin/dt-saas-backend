@@ -11,6 +11,7 @@ import type {
   PublicBranchView,
   PublicCategoryView,
   PublicImageView,
+  PublicProductListResult,
   PublicProductView,
 } from './public-catalog.types';
 
@@ -217,47 +218,113 @@ export class PublicCatalogService {
 
   async findPublicProducts(
     businessId: string,
-    filters: { branchId?: string; categoryId?: string } = {},
-  ): Promise<PublicProductView[]> {
-    const rows = await this.prisma.client.product.findMany({
-      where: {
-        businessId,
-        deletedAt: null,
-        isVisible: true,
-        ...(filters.branchId !== undefined
-          ? { branchId: filters.branchId }
-          : {}),
-        ...(filters.categoryId !== undefined
-          ? { categoryId: filters.categoryId }
-          : {}),
-      },
-      select: {
-        id: true,
-        businessId: true,
-        branchId: true,
-        categoryId: true,
-        name: true,
-        nameKm: true,
-        description: true,
-        descriptionKm: true,
-        salesPrice: true,
-        discount: true,
-        pricingType: true,
-        uom: true,
-        label: true,
-        toppings: true,
-        ingredients: true,
-        isAvailable: true,
-        isVisible: true,
-        images: {
-          where: { isPrimary: true },
-          select: IMAGE_SELECT,
-          take: 1,
+    options: {
+      branchId?: string;
+      branchSlug?: string;
+      categoryId?: string;
+      search?: string;
+      page: number;
+      limit: number;
+    },
+  ): Promise<PublicProductListResult> {
+    const {
+      branchId: rawBranchId,
+      branchSlug,
+      categoryId,
+      search,
+      page,
+      limit,
+    } = options;
+
+    let resolvedBranchId = rawBranchId;
+    if (resolvedBranchId === undefined && branchSlug !== undefined) {
+      const branch = await this.prisma.client.branch.findUnique({
+        where: { businessId_slug: { businessId, slug: branchSlug } },
+        select: { id: true },
+      });
+      if (!branch) return { data: [], total: 0, page, limit };
+      resolvedBranchId = branch.id;
+    }
+
+    const trimmedSearch = search?.trim() || undefined;
+
+    const where = {
+      businessId,
+      deletedAt: null,
+      isVisible: true,
+      ...(resolvedBranchId !== undefined ? { branchId: resolvedBranchId } : {}),
+      ...(categoryId !== undefined ? { categoryId } : {}),
+      ...(trimmedSearch
+        ? {
+            OR: [
+              {
+                name: { contains: trimmedSearch, mode: 'insensitive' as const },
+              },
+              {
+                nameKm: {
+                  contains: trimmedSearch,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                description: {
+                  contains: trimmedSearch,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                descriptionKm: {
+                  contains: trimmedSearch,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.client.product.findMany({
+        where,
+        select: {
+          id: true,
+          businessId: true,
+          branchId: true,
+          categoryId: true,
+          name: true,
+          nameKm: true,
+          description: true,
+          descriptionKm: true,
+          salesPrice: true,
+          discount: true,
+          pricingType: true,
+          uom: true,
+          label: true,
+          toppings: true,
+          ingredients: true,
+          isAvailable: true,
+          isVisible: true,
+          images: {
+            where: { isPrimary: true },
+            select: IMAGE_SELECT,
+            take: 1,
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return rows.map((p) => this.projectProduct(p));
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.client.product.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((p) => this.projectProduct(p)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findPublicProduct(

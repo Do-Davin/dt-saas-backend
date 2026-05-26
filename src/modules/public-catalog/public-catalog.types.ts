@@ -61,3 +61,10 @@ export interface PublicBranchView {
   name: string;
   nameKm: string | null;
 }
+
+export interface PublicProductListResult {
+  data: PublicProductView[];
+  total: number;
+  page: number;
+  limit: number;
+}
