@@ -11,6 +11,7 @@ import { BranchesModule } from './modules/branches/branches.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { ProductImagesModule } from './modules/product-images/product-images.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { StorageModule } from './modules/storage/storage.module';
     CategoriesModule,
     ProductsModule,
     StorageModule,
+    ProductImagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
