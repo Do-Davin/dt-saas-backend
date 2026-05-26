@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   BusinessType,
   CatalogMode,
@@ -242,7 +242,7 @@ export class PublicCatalogService {
         where: { businessId_slug: { businessId, slug: branchSlug } },
         select: { id: true },
       });
-      if (!branch) return { data: [], total: 0, page, limit };
+      if (!branch) throw new NotFoundException('Branch not found');
       resolvedBranchId = branch.id;
     }
 
