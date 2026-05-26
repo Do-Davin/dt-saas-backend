@@ -6,15 +6,26 @@ import {
 } from '@nestjs/common';
 import { Prisma, RequestType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessesService } from '../businesses/businesses.service';
 import { CreateCustomerRequestDto } from './dto/create-customer-request.dto';
+import { ListOwnerRequestsQueryDto } from './dto/list-owner-requests-query.dto';
 import type {
+  OwnerRequestItemView,
+  OwnerRequestListItem,
+  OwnerRequestListResult,
+  OwnerRequestView,
   PublicSubmitRequestItemView,
   PublicSubmitRequestView,
 } from './customer-requests.types';
 
 @Injectable()
 export class CustomerRequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly businesses: BusinessesService,
+  ) {}
+
+  // ─── Public: submit ───────────────────────────────────────────────────────
 
   async submitRequest(
     businessSlug: string,
@@ -70,6 +81,99 @@ export class CustomerRequestsService {
     });
 
     return this.projectSubmitResponse(created);
+  }
+
+  // ─── Owner: list ──────────────────────────────────────────────────────────
+
+  async findAllForBusiness(
+    businessId: string,
+    ownerId: string,
+    query: ListOwnerRequestsQueryDto,
+  ): Promise<OwnerRequestListResult> {
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+
+    const { page = 1, limit = 20, status, type, branchId } = query;
+
+    if (branchId) {
+      await this.assertBranchBelongsToBusiness(branchId, businessId);
+    }
+
+    const where: Prisma.CustomerRequestWhereInput = {
+      businessId,
+      ...(status !== undefined ? { status } : {}),
+      ...(type !== undefined ? { type } : {}),
+      ...(branchId !== undefined ? { branchId } : {}),
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.client.customerRequest.findMany({
+        where,
+        select: {
+          id: true,
+          branchId: true,
+          type: true,
+          status: true,
+          customerName: true,
+          customerPhone: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.client.customerRequest.count({ where }),
+    ]);
+
+    return {
+      data: rows.map((r) => this.projectListItem(r)),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  // ─── Owner: detail ────────────────────────────────────────────────────────
+
+  async findOneForBusiness(
+    businessId: string,
+    requestId: string,
+    ownerId: string,
+  ): Promise<OwnerRequestView> {
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+
+    const row = await this.prisma.client.customerRequest.findFirst({
+      where: { id: requestId, businessId },
+      select: {
+        id: true,
+        businessId: true,
+        branchId: true,
+        type: true,
+        status: true,
+        customerName: true,
+        customerPhone: true,
+        customerNote: true,
+        createdAt: true,
+        updatedAt: true,
+        items: {
+          select: {
+            id: true,
+            productId: true,
+            productNameSnapshot: true,
+            salesPriceSnapshot: true,
+            pricingTypeSnapshot: true,
+            quantity: true,
+            note: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!row) throw new NotFoundException('Request not found');
+
+    return this.projectDetailView(row);
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
@@ -156,6 +260,73 @@ export class CustomerRequestsService {
     }
 
     return result;
+  }
+
+  private projectListItem(row: {
+    id: string;
+    branchId: string | null;
+    type: import('@prisma/client').RequestType;
+    status: import('@prisma/client').RequestStatus;
+    customerName: string | null;
+    customerPhone: string | null;
+    createdAt: Date;
+  }): OwnerRequestListItem {
+    return {
+      id: row.id,
+      branchId: row.branchId,
+      type: row.type,
+      status: row.status,
+      customerName: row.customerName,
+      customerPhone: row.customerPhone,
+      createdAt: row.createdAt,
+    };
+  }
+
+  private projectDetailView(row: {
+    id: string;
+    businessId: string;
+    branchId: string | null;
+    type: import('@prisma/client').RequestType;
+    status: import('@prisma/client').RequestStatus;
+    customerName: string | null;
+    customerPhone: string | null;
+    customerNote: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    items: Array<{
+      id: string;
+      productId: string | null;
+      productNameSnapshot: string;
+      salesPriceSnapshot: Prisma.Decimal | null;
+      pricingTypeSnapshot: import('@prisma/client').PricingType | null;
+      quantity: number;
+      note: string | null;
+    }>;
+  }): OwnerRequestView {
+    const itemViews: OwnerRequestItemView[] = row.items.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      productNameSnapshot: i.productNameSnapshot,
+      salesPriceSnapshot:
+        i.salesPriceSnapshot !== null ? String(i.salesPriceSnapshot) : null,
+      pricingTypeSnapshot: i.pricingTypeSnapshot,
+      quantity: i.quantity,
+      note: i.note,
+    }));
+
+    return {
+      id: row.id,
+      businessId: row.businessId,
+      branchId: row.branchId,
+      type: row.type,
+      status: row.status,
+      customerName: row.customerName,
+      customerPhone: row.customerPhone,
+      customerNote: row.customerNote,
+      items: itemViews,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
   }
 
   private projectSubmitResponse(row: {
