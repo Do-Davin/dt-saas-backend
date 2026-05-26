@@ -1,5 +1,30 @@
 import { PricingType, RequestStatus, RequestType } from '@prisma/client';
 
+// ─── Public submission response ───────────────────────────────────────────────
+
+export interface PublicSubmitRequestItemView {
+  id: string;
+  productNameSnapshot: string;
+  salesPriceSnapshot: string | null;
+  pricingTypeSnapshot: PricingType | null;
+  quantity: number;
+  note: string | null;
+}
+
+export interface PublicSubmitRequestView {
+  id: string;
+  type: RequestType;
+  status: RequestStatus;
+  branchId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerNote: string | null;
+  items: PublicSubmitRequestItemView[];
+  createdAt: Date;
+}
+
+// ─── Owner views ──────────────────────────────────────────────────────────────
+
 export interface OwnerRequestItemView {
   id: string;
   productId: string | null;
