@@ -36,7 +36,7 @@ export default tseslint.config(
     // Prisma 7's generated client type chain is not resolved by the ESLint
     // project service — tsc and CLI eslint both pass without errors.
     // Applied broadly to all service files that access prisma.client.*.
-    files: ['src/modules/prisma/prisma.service.ts', 'src/**/*.service.ts', 'src/**/*.dto.ts'],
+    files: ['src/modules/prisma/prisma.service.ts', 'src/**/*.service.ts', 'src/**/*.controller.ts', 'src/**/*.dto.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

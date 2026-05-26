@@ -26,11 +26,7 @@ export class ProductImagesService {
     dto: UploadProductImageDto,
   ) {
     await this.businesses.findOwnedOrFail(businessId, ownerId);
-
-    const product = await this.prisma.client.product.findFirst({
-      where: { id: productId, businessId, deletedAt: null },
-    });
-    if (!product) throw new NotFoundException('Product not found');
+    await this.assertProductBelongs(businessId, productId);
 
     const extension = MIME_TO_EXT[file.mimetype];
     const imageId = crypto.randomUUID();
@@ -77,5 +73,58 @@ export class ProductImagesService {
       await this.storage.deleteObject(key).catch(() => undefined);
       throw err;
     }
+  }
+
+  async findAll(businessId: string, productId: string, ownerId: string) {
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+    await this.assertProductBelongs(businessId, productId);
+
+    return this.prisma.client.productImage.findMany({
+      where: { productId },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async remove(
+    businessId: string,
+    productId: string,
+    imageId: string,
+    ownerId: string,
+  ) {
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+    await this.assertProductBelongs(businessId, productId);
+
+    const image = await this.prisma.client.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
+    if (!image) throw new NotFoundException('Image not found');
+
+    await this.prisma.client.$transaction(async (tx) => {
+      await tx.productImage.delete({ where: { id: imageId } });
+
+      if (image.isPrimary) {
+        const next = await tx.productImage.findFirst({
+          where: { productId },
+          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+        });
+        if (next) {
+          await tx.productImage.update({
+            where: { id: next.id },
+            data: { isPrimary: true },
+          });
+        }
+      }
+    });
+
+    await this.storage.deleteObject(image.key).catch(() => undefined);
+  }
+
+  // ─── Private helpers ─────────────────────────────────────────────────────
+
+  private async assertProductBelongs(businessId: string, productId: string) {
+    const product = await this.prisma.client.product.findFirst({
+      where: { id: productId, businessId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Product not found');
   }
 }

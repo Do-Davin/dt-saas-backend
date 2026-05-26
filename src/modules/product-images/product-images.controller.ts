@@ -1,7 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   FileTypeValidator,
+  Get,
+  HttpCode,
+  HttpStatus,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
@@ -23,6 +27,31 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 @UseGuards(JwtAuthGuard)
 export class ProductImagesController {
   constructor(private readonly productImagesService: ProductImagesService) {}
+
+  @Get()
+  findAll(
+    @Param('businessId') businessId: string,
+    @Param('productId') productId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.productImagesService.findAll(businessId, productId, user.sub);
+  }
+
+  @Delete(':imageId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @Param('businessId') businessId: string,
+    @Param('productId') productId: string,
+    @Param('imageId') imageId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.productImagesService.remove(
+      businessId,
+      productId,
+      imageId,
+      user.sub,
+    );
+  }
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
