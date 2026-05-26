@@ -8,9 +8,7 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { BusinessesService } from './businesses.service';
@@ -18,7 +16,6 @@ import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 
 @Controller('businesses')
-@UseGuards(JwtAuthGuard)
 export class BusinessesController {
   constructor(private readonly businessesService: BusinessesService) {}
 

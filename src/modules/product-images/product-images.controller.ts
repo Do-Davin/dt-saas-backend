@@ -12,11 +12,9 @@ import {
   Patch,
   Post,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { ProductImagesService } from './product-images.service';
@@ -26,7 +24,6 @@ import { UpdateProductImageDto } from './dto/update-product-image.dto';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 @Controller('businesses/:businessId/products/:productId/images')
-@UseGuards(JwtAuthGuard)
 export class ProductImagesController {
   constructor(private readonly productImagesService: ProductImagesService) {}
 

@@ -8,9 +8,7 @@ import {
   Param,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { BranchesService } from './branches.service';
@@ -18,7 +16,6 @@ import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 
 @Controller('businesses/:businessId/branches')
-@UseGuards(JwtAuthGuard)
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
