@@ -4,11 +4,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Prisma, RequestType } from '@prisma/client';
+import { Prisma, RequestStatus, RequestType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { CreateCustomerRequestDto } from './dto/create-customer-request.dto';
 import { ListOwnerRequestsQueryDto } from './dto/list-owner-requests-query.dto';
+import { UpdateCustomerRequestStatusDto } from './dto/update-customer-request-status.dto';
 import type {
   OwnerRequestItemView,
   OwnerRequestListItem,
@@ -17,6 +18,50 @@ import type {
   PublicSubmitRequestItemView,
   PublicSubmitRequestView,
 } from './customer-requests.types';
+
+const ALLOWED_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
+  [RequestStatus.NEW]: [
+    RequestStatus.SEEN,
+    RequestStatus.ACCEPTED,
+    RequestStatus.REJECTED,
+    RequestStatus.CANCELLED,
+  ],
+  [RequestStatus.SEEN]: [
+    RequestStatus.ACCEPTED,
+    RequestStatus.REJECTED,
+    RequestStatus.CANCELLED,
+  ],
+  [RequestStatus.ACCEPTED]: [RequestStatus.COMPLETED, RequestStatus.CANCELLED],
+  [RequestStatus.REJECTED]: [],
+  [RequestStatus.COMPLETED]: [],
+  [RequestStatus.CANCELLED]: [],
+};
+
+// Shared select for owner detail view — used by findOneForBusiness and updateRequestStatus
+const DETAIL_SELECT = {
+  id: true,
+  businessId: true,
+  branchId: true,
+  type: true,
+  status: true,
+  customerName: true,
+  customerPhone: true,
+  customerNote: true,
+  createdAt: true,
+  updatedAt: true,
+  items: {
+    select: {
+      id: true,
+      productId: true,
+      productNameSnapshot: true,
+      salesPriceSnapshot: true,
+      pricingTypeSnapshot: true,
+      quantity: true,
+      note: true,
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+} as const;
 
 @Injectable()
 export class CustomerRequestsService {
@@ -145,35 +190,49 @@ export class CustomerRequestsService {
 
     const row = await this.prisma.client.customerRequest.findFirst({
       where: { id: requestId, businessId },
-      select: {
-        id: true,
-        businessId: true,
-        branchId: true,
-        type: true,
-        status: true,
-        customerName: true,
-        customerPhone: true,
-        customerNote: true,
-        createdAt: true,
-        updatedAt: true,
-        items: {
-          select: {
-            id: true,
-            productId: true,
-            productNameSnapshot: true,
-            salesPriceSnapshot: true,
-            pricingTypeSnapshot: true,
-            quantity: true,
-            note: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+      select: DETAIL_SELECT,
     });
 
     if (!row) throw new NotFoundException('Request not found');
 
     return this.projectDetailView(row);
+  }
+
+  // ─── Owner: status update ─────────────────────────────────────────────────
+
+  async updateRequestStatus(
+    businessId: string,
+    requestId: string,
+    ownerId: string,
+    dto: UpdateCustomerRequestStatusDto,
+  ): Promise<OwnerRequestView> {
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+
+    const current = await this.prisma.client.customerRequest.findFirst({
+      where: { id: requestId, businessId },
+      select: DETAIL_SELECT,
+    });
+
+    if (!current) throw new NotFoundException('Request not found');
+
+    if (current.status === dto.status) {
+      return this.projectDetailView(current);
+    }
+
+    const allowed = ALLOWED_TRANSITIONS[current.status];
+    if (!allowed.includes(dto.status)) {
+      throw new BadRequestException(
+        `Cannot transition from ${current.status} to ${dto.status}`,
+      );
+    }
+
+    const updated = await this.prisma.client.customerRequest.update({
+      where: { id: requestId },
+      data: { status: dto.status },
+      select: DETAIL_SELECT,
+    });
+
+    return this.projectDetailView(updated);
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
