@@ -15,6 +15,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { ProductImagesModule } from './modules/product-images/product-images.module';
 import { PublicCatalogModule } from './modules/public-catalog/public-catalog.module';
+import { CustomerRequestsModule } from './modules/customer-requests/customer-requests.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PublicCatalogModule } from './modules/public-catalog/public-catalog.mod
     StorageModule,
     ProductImagesModule,
     PublicCatalogModule,
+    CustomerRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
