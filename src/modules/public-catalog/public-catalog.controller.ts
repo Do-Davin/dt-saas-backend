@@ -27,6 +27,23 @@ export class PublicCatalogController {
     return { business, branches, categories };
   }
 
+  @Get(':businessSlug/products/:productId')
+  async getBusinessProduct(
+    @Param('businessSlug') businessSlug: string,
+    @Param('productId') productId: string,
+  ) {
+    const business = await this.catalog.findPublicBusiness(businessSlug);
+    if (!business) throw new NotFoundException('Business not found');
+
+    const product = await this.catalog.findPublicProduct(
+      business.id,
+      productId,
+    );
+    if (!product) throw new NotFoundException('Product not found');
+
+    return { product };
+  }
+
   @Get(':businessSlug/products')
   async getBusinessProducts(
     @Param('businessSlug') businessSlug: string,
