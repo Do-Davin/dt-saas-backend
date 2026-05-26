@@ -9,6 +9,7 @@ import {
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
+  Patch,
   Post,
   UploadedFile,
   UseGuards,
@@ -20,6 +21,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { ProductImagesService } from './product-images.service';
 import { UploadProductImageDto } from './dto/upload-product-image.dto';
+import { UpdateProductImageDto } from './dto/update-product-image.dto';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -46,6 +48,38 @@ export class ProductImagesController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.productImagesService.remove(
+      businessId,
+      productId,
+      imageId,
+      user.sub,
+    );
+  }
+
+  @Patch(':imageId')
+  update(
+    @Param('businessId') businessId: string,
+    @Param('productId') productId: string,
+    @Param('imageId') imageId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateProductImageDto,
+  ) {
+    return this.productImagesService.update(
+      businessId,
+      productId,
+      imageId,
+      user.sub,
+      dto,
+    );
+  }
+
+  @Patch(':imageId/set-primary')
+  setPrimary(
+    @Param('businessId') businessId: string,
+    @Param('productId') productId: string,
+    @Param('imageId') imageId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.productImagesService.setPrimary(
       businessId,
       productId,
       imageId,

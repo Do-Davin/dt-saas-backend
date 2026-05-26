@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessesService } from '../businesses/businesses.service';
 import { StorageService } from '../storage/storage.service';
 import { UploadProductImageDto } from './dto/upload-product-image.dto';
+import { UpdateProductImageDto } from './dto/update-product-image.dto';
 
 const MIME_TO_EXT: Record<string, 'jpg' | 'png' | 'webp'> = {
   'image/jpeg': 'jpg',
@@ -117,6 +122,60 @@ export class ProductImagesService {
     });
 
     await this.storage.deleteObject(image.key).catch(() => undefined);
+  }
+
+  async update(
+    businessId: string,
+    productId: string,
+    imageId: string,
+    ownerId: string,
+    dto: UpdateProductImageDto,
+  ) {
+    if (dto.alt === undefined && dto.position === undefined) {
+      throw new BadRequestException('At least one field must be provided');
+    }
+
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+    await this.assertProductBelongs(businessId, productId);
+
+    const image = await this.prisma.client.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
+    if (!image) throw new NotFoundException('Image not found');
+
+    return this.prisma.client.productImage.update({
+      where: { id: imageId },
+      data: {
+        ...(dto.alt !== undefined ? { alt: dto.alt } : {}),
+        ...(dto.position !== undefined ? { position: dto.position } : {}),
+      },
+    });
+  }
+
+  async setPrimary(
+    businessId: string,
+    productId: string,
+    imageId: string,
+    ownerId: string,
+  ) {
+    await this.businesses.findOwnedOrFail(businessId, ownerId);
+    await this.assertProductBelongs(businessId, productId);
+
+    const image = await this.prisma.client.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
+    if (!image) throw new NotFoundException('Image not found');
+
+    return this.prisma.client.$transaction(async (tx) => {
+      await tx.productImage.updateMany({
+        where: { productId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+      return tx.productImage.update({
+        where: { id: imageId },
+        data: { isPrimary: true },
+      });
+    });
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────
